@@ -64,3 +64,48 @@ resource "aws_cloudwatch_log_group" "ecs" {
   name              = "/ecs/${var.project}-${var.environment}"
   retention_in_days = 7
 }
+
+resource "aws_iam_role_policy" "ecs_task_ssm_policy" {
+  name = "${var.project}-${var.environment}-ecs-task-ssm-policy"
+  role = aws_iam_role.ecs_task_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameters",
+          "ssm:GetParameter"
+        ]
+        Resource = [
+          aws_ssm_parameter.iot_certificate.arn,
+          aws_ssm_parameter.iot_private_key.arn
+        ]
+      }
+    ]
+  })
+}
+
+// ECS Task Execution Roleにポリシーを追加
+resource "aws_iam_role_policy" "ecs_task_execution_ssm_policy" {
+  name = "${var.project}-${var.environment}-ecs-task-execution-ssm-policy"
+  role = aws_iam_role.ecs_task_execution_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameters",
+          "ssm:GetParameter"
+        ]
+        Resource = [
+          aws_ssm_parameter.iot_certificate.arn,
+          aws_ssm_parameter.iot_private_key.arn
+        ]
+      }
+    ]
+  })
+}

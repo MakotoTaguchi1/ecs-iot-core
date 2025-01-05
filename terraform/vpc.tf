@@ -86,6 +86,54 @@ resource "aws_vpc_endpoint" "s3" {
   }
 }
 
+# IoT Core エンドポイント
+resource "aws_vpc_endpoint" "iot_data" {
+  vpc_id              = module.vpc.vpc_id
+  service_name        = "com.amazonaws.${var.aws_region}.iot.data"
+  vpc_endpoint_type   = "Interface"
+  private_dns_enabled = false
+  subnet_ids          = module.vpc.private_subnets
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+
+  tags = {
+    Name        = "${var.project}-${var.environment}-iot-data-endpoint"
+    Environment = var.environment
+    Project     = var.project
+  }
+}
+
+# Systems Manager エンドポイントを追加
+resource "aws_vpc_endpoint" "ssm" {
+  vpc_id              = module.vpc.vpc_id
+  service_name        = "com.amazonaws.${var.aws_region}.ssm"
+  vpc_endpoint_type   = "Interface"
+  private_dns_enabled = true
+  subnet_ids          = module.vpc.private_subnets
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+
+  tags = {
+    Name        = "${var.project}-${var.environment}-ssm-endpoint"
+    Environment = var.environment
+    Project     = var.project
+  }
+}
+
+# SSM エンドポイントを追加
+resource "aws_vpc_endpoint" "ssmmessages" {
+  vpc_id              = module.vpc.vpc_id
+  service_name        = "com.amazonaws.${var.aws_region}.ssmmessages"
+  vpc_endpoint_type   = "Interface"
+  private_dns_enabled = true
+  subnet_ids          = module.vpc.private_subnets
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+
+  tags = {
+    Name        = "${var.project}-${var.environment}-ssmmessages-endpoint"
+    Environment = var.environment
+    Project     = var.project
+  }
+}
+
 # VPCエンドポイント用のセキュリティグループ
 resource "aws_security_group" "vpc_endpoints" {
   name        = "${var.project}-${var.environment}-vpc-endpoints"
@@ -97,6 +145,13 @@ resource "aws_security_group" "vpc_endpoints" {
     to_port         = 443
     protocol        = "tcp"
     security_groups = [aws_security_group.ecs_tasks.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   tags = {

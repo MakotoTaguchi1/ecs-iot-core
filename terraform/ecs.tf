@@ -15,6 +15,22 @@ resource "aws_ecs_task_definition" "app" {
     {
       name  = "${var.project}-${var.environment}-app"
       image = "${aws_ecr_repository.gateway_app.repository_url}:latest"
+      environment = [
+        {
+          name  = "AWS_IOT_ENDPOINT"
+          value = data.aws_iot_endpoint.current.endpoint_address
+        }
+      ]
+      secrets = [
+        {
+          name      = "CERTIFICATE"
+          valueFrom = aws_ssm_parameter.iot_certificate.arn
+        },
+        {
+          name      = "PRIVATE_KEY"
+          valueFrom = aws_ssm_parameter.iot_private_key.arn
+        }
+      ]
       portMappings = [
         {
           containerPort = var.container_port
@@ -41,35 +57,29 @@ resource "aws_ecs_service" "app" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    security_groups = [aws_security_group.ecs_tasks.id]
-    subnets         = module.vpc.private_subnets
+    security_groups  = [aws_security_group.ecs_tasks.id]
+    subnets          = module.vpc.private_subnets
+    assign_public_ip = false
   }
 
-  load_balancer {
-    target_group_arn = aws_lb_target_group.app.arn
-    container_name   = "${var.project}-${var.environment}-app"
-    container_port   = var.container_port
-  }
+  #   load_balancer {
+  #     target_group_arn = aws_lb_target_group.app.arn
+  #     container_name   = "${var.project}-${var.environment}-app"
+  #     container_port   = var.container_port
+  #   }
 
-  depends_on = [aws_lb_listener.app]
+  #   depends_on = [aws_lb_listener.app]
 }
 
 resource "aws_security_group" "ecs_tasks" {
   name        = "${var.project}-${var.environment}-ecs-tasks"
-  description = "Allow inbound traffic from ALB"
+  description = "Allow all outbound traffic for debugging"
   vpc_id      = module.vpc.vpc_id
 
-  ingress {
-    from_port       = var.container_port
-    to_port         = var.container_port
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb.id]
-  }
-
   egress {
-    from_port   = 0
+    from_port   = 0 # すべてのポート
     to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    protocol    = "-1"          # すべてのプロトコル
+    cidr_blocks = ["0.0.0.0/0"] # すべての送信先
   }
 }
