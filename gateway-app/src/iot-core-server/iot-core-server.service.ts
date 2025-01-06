@@ -11,25 +11,30 @@ export class IotCoreServerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(IotCoreServerService.name);
   private connection: mqtt.MqttClientConnection;
   private shadowClient: iotshadow.IotShadowClient;
+  private thingName: string;
 
   constructor() {
     this.logger = new Logger(IotCoreServerService.name);
 
-    // 環境変数のチェック
-    if (!process.env.AWS_IOT_ENDPOINT) {
-      this.logger.error('AWS_IOT_ENDPOINT is not set');
-      return;
-    }
-    if (!process.env.CERTIFICATE) {
-      this.logger.error('CERTIFICATE is not set');
-      return;
-    }
-    if (!process.env.PRIVATE_KEY) {
-      this.logger.error('PRIVATE_KEY is not set');
-      return;
-    }
+    // 環境変数のチェックと詳細なログ出力
+    const requiredEnvVars = {
+      AWS_IOT_ENDPOINT: process.env.AWS_IOT_ENDPOINT,
+      IOT_THING_NAME: process.env.IOT_THING_NAME,
+      CERTIFICATE: process.env.CERTIFICATE?.length || 0,
+      PRIVATE_KEY: process.env.PRIVATE_KEY?.length || 0,
+    };
+
+    this.logger.debug('Environment variables:', requiredEnvVars);
+
+    // 必要な環境変数が設定されているか確認
+    Object.entries(requiredEnvVars).forEach(([key, value]) => {
+      if (!value) {
+        throw new Error(`Missing required environment variable: ${key}`);
+      }
+    });
 
     try {
+      this.logger.debug('Initializing IoT Core connection config...');
       const config = iot.AwsIotMqttConnectionConfigBuilder.new_mtls_builder(
         process.env.CERTIFICATE,
         process.env.PRIVATE_KEY,
@@ -37,11 +42,14 @@ export class IotCoreServerService implements OnModuleInit, OnModuleDestroy {
         .with_endpoint(process.env.AWS_IOT_ENDPOINT)
         .build();
 
+      this.logger.debug('Creating MQTT client...');
       const client = new mqtt.MqttClient();
       this.connection = client.new_connection(config);
       this.shadowClient = new iotshadow.IotShadowClient(this.connection);
+      this.thingName = process.env.IOT_THING_NAME;
     } catch (error) {
       this.logger.error('Failed to initialize IoT Core service', error);
+      throw error;
     }
   }
 
@@ -82,7 +90,7 @@ export class IotCoreServerService implements OnModuleInit, OnModuleDestroy {
   private async subscribeToShadowTopics(): Promise<void> {
     try {
       await this.shadowClient.subscribeToUpdateShadowAccepted(
-        { thingName: '+' },
+        { thingName: this.thingName },
         mqtt.QoS.AtLeastOnce,
         (error, response) => {
           if (error) {
@@ -94,7 +102,7 @@ export class IotCoreServerService implements OnModuleInit, OnModuleDestroy {
       );
 
       await this.shadowClient.subscribeToUpdateShadowRejected(
-        { thingName: '+' },
+        { thingName: this.thingName },
         mqtt.QoS.AtLeastOnce,
         (error) => {
           if (error) {
@@ -103,7 +111,9 @@ export class IotCoreServerService implements OnModuleInit, OnModuleDestroy {
         },
       );
 
-      this.logger.log('Subscribed to shadow topics');
+      this.logger.log(
+        `Subscribed to shadow topics for thing: ${this.thingName}`,
+      );
     } catch (err) {
       this.logger.error('Failed to subscribe to shadow topics', err);
       throw err;
