@@ -19,6 +19,10 @@ resource "aws_ecs_task_definition" "app" {
         {
           name  = "AWS_IOT_ENDPOINT"
           value = data.aws_iot_endpoint.current.endpoint_address
+        },
+        {
+          name  = "IOT_THING_NAME"
+          value = aws_iot_thing.gateway.name
         }
       ]
       secrets = [
@@ -53,7 +57,7 @@ resource "aws_ecs_service" "app" {
   name            = "${var.project}-${var.environment}-service"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.app.arn
-  desired_count   = 1
+  desired_count   = 0
   launch_type     = "FARGATE"
 
   network_configuration {

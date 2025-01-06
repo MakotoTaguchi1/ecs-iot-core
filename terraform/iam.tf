@@ -109,3 +109,35 @@ resource "aws_iam_role_policy" "ecs_task_execution_ssm_policy" {
     ]
   })
 }
+
+# ECSタスクロールにIoT Core Data Access権限を追加
+resource "aws_iam_role_policy" "ecs_task_iot_data_policy" {
+  name = "${var.project}-${var.environment}-ecs-task-iot-data-policy"
+  role = aws_iam_role.ecs_task_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "iot:Connect",
+          "iot:Subscribe",
+          "iot:Publish",
+          "iot:Receive",
+          "iot:GetThingShadow",
+          "iot:UpdateThingShadow",
+          "iot:DeleteThingShadow"
+        ]
+        Resource = [
+          "arn:aws:iot:${var.aws_region}:${data.aws_caller_identity.current.account_id}:client/${aws_iot_thing.gateway.name}",
+          "arn:aws:iot:${var.aws_region}:${data.aws_caller_identity.current.account_id}:topic/$aws/things/${aws_iot_thing.gateway.name}/*",
+          "arn:aws:iot:${var.aws_region}:${data.aws_caller_identity.current.account_id}:topicfilter/$aws/things/${aws_iot_thing.gateway.name}/*"
+        ]
+      }
+    ]
+  })
+}
+
+# AWSアカウントIDを取得するためのデータソース
+data "aws_caller_identity" "current" {}

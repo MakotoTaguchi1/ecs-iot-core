@@ -54,3 +54,26 @@ resource "aws_iam_role_policy" "gateway_ecs_task_iot_policy" {
     ]
   })
 }
+
+# IoT Core Thing
+resource "aws_iot_thing" "gateway" {
+  name            = "${var.project}-${var.environment}-gateway"
+  thing_type_name = aws_iot_thing_type.gateway.name
+}
+
+# IoT Core Thing Principal（証明書とThingの関連付け）
+resource "aws_iot_thing_principal_attachment" "gateway" {
+  principal = aws_iot_certificate.gateway.arn
+  thing     = aws_iot_thing.gateway.name
+}
+
+# IoT Core 証明書
+resource "aws_iot_certificate" "gateway" {
+  active = true
+}
+
+# IoT Core Policy Attachment
+resource "aws_iot_policy_attachment" "gateway" {
+  policy = aws_iot_policy.gateway_policy.name
+  target = aws_iot_certificate.gateway.arn
+}
