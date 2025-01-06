@@ -12,10 +12,12 @@ module "vpc" {
   private_subnets = [for i in range(2) : cidrsubnet(var.vpc_cidr, 8, i)]
   public_subnets  = [for i in range(2) : cidrsubnet(var.vpc_cidr, 8, i + 100)]
 
-  # NAT Gatewayを有効化
-  enable_nat_gateway = true
-  # 単一のNAT Gatewayを使用（コスト削減）
-  single_nat_gateway = true
+  # # NAT Gatewayを有効化
+  # enable_nat_gateway = true
+  # # 単一のNAT Gatewayを使用（コスト削減）
+  # single_nat_gateway = true
+  # NAT Gatewayを無効化
+  enable_nat_gateway = false
 
   enable_dns_hostnames = true
   enable_dns_support   = true
