@@ -14,9 +14,7 @@ export class IotCoreServerService implements OnModuleInit, OnModuleDestroy {
   private thingName: string;
 
   constructor() {
-    this.logger = new Logger(IotCoreServerService.name);
-
-    // 環境変数のチェックと詳細なログ出力
+    // 環境変数の検証のみを行う
     const requiredEnvVars = {
       AWS_IOT_ENDPOINT: process.env.AWS_IOT_ENDPOINT,
       IOT_THING_NAME: process.env.IOT_THING_NAME,
@@ -26,31 +24,13 @@ export class IotCoreServerService implements OnModuleInit, OnModuleDestroy {
 
     this.logger.debug('Environment variables:', requiredEnvVars);
 
-    // 必要な環境変数が設定されているか確認
     Object.entries(requiredEnvVars).forEach(([key, value]) => {
       if (!value) {
         throw new Error(`Missing required environment variable: ${key}`);
       }
     });
 
-    try {
-      this.logger.debug('Initializing IoT Core connection config...');
-      const config = iot.AwsIotMqttConnectionConfigBuilder.new_mtls_builder(
-        process.env.CERTIFICATE,
-        process.env.PRIVATE_KEY,
-      )
-        .with_endpoint(process.env.AWS_IOT_ENDPOINT)
-        .build();
-
-      this.logger.debug('Creating MQTT client...');
-      const client = new mqtt.MqttClient();
-      this.connection = client.new_connection(config);
-      this.shadowClient = new iotshadow.IotShadowClient(this.connection);
-      this.thingName = process.env.IOT_THING_NAME;
-    } catch (error) {
-      this.logger.error('Failed to initialize IoT Core service', error);
-      throw error;
-    }
+    this.thingName = process.env.IOT_THING_NAME;
   }
 
   /**
@@ -59,10 +39,27 @@ export class IotCoreServerService implements OnModuleInit, OnModuleDestroy {
    */
   async onModuleInit() {
     try {
+      this.logger.debug('Initializing IoT Core connection config...');
+      const config = iot.AwsIotMqttConnectionConfigBuilder.new_mtls_builder(
+        process.env.CERTIFICATE,
+        process.env.PRIVATE_KEY,
+      )
+        .with_endpoint(process.env.AWS_IOT_ENDPOINT)
+        .with_port(8883)
+        .with_client_id(process.env.IOT_THING_NAME)
+        .with_clean_session(true)
+        .with_keep_alive_seconds(30)
+        .build();
+
+      this.logger.debug('Creating MQTT client...');
+      const client = new mqtt.MqttClient();
+      this.connection = client.new_connection(config);
+      this.shadowClient = new iotshadow.IotShadowClient(this.connection);
+
       this.logger.log('Attempting to connect to AWS IoT Core...');
-      this.logger.log(`Endpoint: ${process.env.AWS_IOT_ENDPOINT}`);
       await this.connection.connect();
       this.logger.log('Connected to AWS IoT Core');
+
       await this.subscribeToShadowTopics();
     } catch (err) {
       this.logger.error('Failed to initialize IoT Core connection', err);
