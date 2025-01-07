@@ -126,7 +126,9 @@ export class IotCoreServerService implements OnModuleInit, OnModuleDestroy {
    */
   private handleShadowUpdate(response: any): void {
     try {
-      const { state, clientToken, timestamp, thingName } = response;
+      const { state, clientToken, timestamp } = response;
+      const thingName = this.thingName;
+
       if (state?.desired) {
         this.logger.debug('Shadow update received:', {
           thingName,
@@ -134,7 +136,15 @@ export class IotCoreServerService implements OnModuleInit, OnModuleDestroy {
           timestamp,
           state: state.desired,
         });
+
+        // コマンド処理
         this.sendCommandToDevice(state.desired);
+
+        // デバイスシャドウのdesiredステートの内容をreportedステートに反映
+        this.updateDeviceShadow(thingName, {
+          ...state.desired, // desiredの内容をそのまま反映
+          status: 'running',
+        });
       }
     } catch (err) {
       this.logger.error('Error handling shadow update', err);
