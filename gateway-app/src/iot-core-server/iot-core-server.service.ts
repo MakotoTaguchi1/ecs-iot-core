@@ -60,6 +60,7 @@ export class IotCoreServerService implements OnModuleInit, OnModuleDestroy {
       await this.connection.connect();
       this.logger.log('Connected to AWS IoT Core');
 
+      // デバイスシャドウからのメッセージ待ち受けを開始
       await this.subscribeToShadowTopics();
     } catch (err) {
       this.logger.error('Failed to initialize IoT Core connection', err);
@@ -118,6 +119,7 @@ export class IotCoreServerService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * デバイスシャドウ → NestJS
    * シャドウの更新通知を受信した際の処理を行います
    * desired stateが含まれている場合、デバイスへのコマンド送信を試みます
    * @param response シャドウ更新の応答データ
@@ -156,6 +158,7 @@ export class IotCoreServerService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * NestJS → デバイスシャドウ
    * 指定されたデバイスのシャドウ状態を更新します
    * デバイスの報告された状態（reported state）を更新します
    * @param thingName 更新対象のデバイス名
